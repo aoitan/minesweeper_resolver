@@ -150,6 +150,39 @@ class Board {
     return around;
   }
 
+  closedIndexes() {
+    return this.d.reduce((p, c, i) => {
+      if (CLOSED <= c && c < FLAG) {
+        p.push(i);
+      }
+      return p;
+    }, []);
+  }
+
+  opened1Indexes() {
+    return this.d.reduce((p, c, i) => {
+      if (0 <= c && c < CLOSED && c == 1) {
+        p.push(i);
+      }
+      return p;
+    }, []);
+  }
+
+  closedIndexesAround(x, y) {
+    const idxs = [];
+    for (let i = -1; i < 2; ++i) {
+      for (let j = -1; j < 2; ++j) {
+        if (i == 0 && j == 0) continue;
+
+        const v = this.get(x + j, y + i);
+        if (CLOSED <= v && v < FLAG) {
+          idxs.push(this._pos2idx(x + j, y + i));
+        }
+      }
+    }
+    return idxs;
+  }
+
   isBomb(x, y) {
     return this.get(x, y) == BOMB;
   }
@@ -158,9 +191,26 @@ class Board {
     return this.get(x, y) == OUT_OB_BOARD;
   }
 
+  isOpened(x, y) {
+    const v = this.get(x, y);
+    return 0 <= v && v < CLOSED;
+  }
+
+  isFlag(x, y) {
+    return FLAG <= this.get(x, y);
+  }
+
   isAllOpened() {
     const closed = this.countUnopened();
     return closed == this.b;
+  }
+
+  isOpenedAround(x, y) {
+    if (!this.isOpened(x, y)) return false;
+    const expected = 8 - this.get(x, y);
+    const around = this.getAround(x, y);
+    const closed = around.reduce((p, c) => (CLOSED <= c && c < FLAG)? p + 1: p, 0);
+    return closed == expected;
   }
 
   countUnopened() {
@@ -178,6 +228,11 @@ class Board {
   countOpened() {
     const closed = this.countUnopened();
     return this.w * this.h - closed;
+  }
+
+  countClosedAround(x, y) {
+    const around = this.getAround(x, y);
+    return around.reduce((p, c) => (CLOSED <= c && c < FLAG)? p + 1: p, 0);
   }
 
   get width() {
@@ -297,8 +352,78 @@ class HumanPlayer extends Player {
   }
 }
 
-// アルゴリズムで解く
+// 自分の解いている手順をコーディングする
 class SolverPlayer extends Player {
+  constructor(board) {
+    super();
+    this.b = board;
+  }
+
+  async move() {
+    const p = new Promise((resolve, reject) => {
+      const b = this.b;
+      readline.question(`pause`, (input) => {
+        const pos = {};
+
+        // 初手左上
+        if (b.countOpened() == 0) {
+          pos.op = 'o';
+          pos.x = 1;
+          pos.y = 1;
+        } else {
+          // 角1を探す
+          // ??1
+          //  *?
+          //   ?
+          const opened1 = b.opened1Indexes();
+          for (let cell of opened1) {
+            const closed = b.countClosedAround(...b._idx2pos(cell));
+            if (closed == 1) {
+              const closedIdx = b.closedIndexesAround(...b._idx2pos(cell));
+              const p = b._idx2pos(closedIdx[0]);
+              pos.op = 'f';
+              pos.x = p[0];
+              pos.y = p[1];
+              resolve(pos);
+              return;
+            }
+          }
+
+          // 1-1を探す
+          //   11
+          // ? ?? ?
+
+          // 1-2-1を探す
+          // 121
+          // * *
+
+          // 1-2-2-1を探す
+          // 1221
+          //  ** 
+
+          // 確定3を探す
+          //  3
+          // ***
+
+          // 確定2を探す
+          // ###
+          // #22
+          // #**
+
+          // 確定がないので適当に開ける
+          const closedIdxs = b.closedIndexes();
+          const idx = Math.floor(Math.random() * closedIdxs.length);
+          const p = b._idx2pos(closedIdxs[idx]);
+
+          pos.op = 'o';
+          pos.x = p[0];
+          pos.y = p[1];
+        }
+        resolve(pos);
+      });
+    });
+    return p;
+  }
 }
 
 // 機械学習で解く
@@ -309,7 +434,8 @@ class MLPlayer extends Player {
 async function main() {
   const board = new Board(width, height, bombs);
 
-  const player = new HumanPlayer();
+  //const player = new HumanPlayer();
+  const player = new SolverPlayer(board);
 
   const engine = new GameEngine(board, player);
 
