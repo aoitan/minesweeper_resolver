@@ -161,8 +161,12 @@ class Board {
 
   opened1Indexes() {
     return this.d.reduce((p, c, i) => {
-      if (0 <= c && c < CLOSED && c == 1) {
-        p.push(i);
+      if (0 <= c && c < CLOSED) {
+        const pos = this._idx2pos(i);
+        const flags = this.countFlagsAround(...pos);
+        if (1 == (c - flags)) {
+          p.push(i);
+        }
       }
       return p;
     }, []);
@@ -233,6 +237,11 @@ class Board {
   countClosedAround(x, y) {
     const around = this.getAround(x, y);
     return around.reduce((p, c) => (CLOSED <= c && c < FLAG)? p + 1: p, 0);
+  }
+
+  countFlagsAround(x, y) {
+    const around = this.getAround(x, y);
+    return around.reduce((p, c) => (FLAG <= c)? p + 1: p, 0);
   }
 
   get width() {
