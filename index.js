@@ -159,12 +159,12 @@ class Board {
     }, []);
   }
 
-  opened1Indexes() {
+  openedNIndexes(n) {
     return this.d.reduce((p, c, i) => {
       if (0 <= c && c < CLOSED) {
         const pos = this._idx2pos(i);
         const flags = this.countFlagsAround(...pos);
-        if (1 == (c - flags)) {
+        if (n == (c - flags)) {
           p.push(i);
         }
       }
@@ -380,22 +380,40 @@ class SolverPlayer extends Player {
           pos.x = 1;
           pos.y = 1;
         } else {
-          // 角1を探す
-          // ??1
-          //  *?
-          //   ?
-          const opened1 = b.opened1Indexes();
-          for (let cell of opened1) {
-            const closed = b.countClosedAround(...b._idx2pos(cell));
-            if (closed == 1) {
-              const closedIdx = b.closedIndexesAround(...b._idx2pos(cell));
-              const p = b._idx2pos(closedIdx[0]);
-              pos.op = 'f';
-              pos.x = p[0];
-              pos.y = p[1];
-              resolve(pos);
-              return;
+          const searchFixed = (n, op) => {
+            const opened = b.openedNIndexes(n);
+            for (let cell of opened) {
+              const p = b._idx2pos(cell);
+              const closed = b.countClosedAround(...p);
+              const flags = b.countFlagsAround(...p);
+              const value = b.get(...p);
+              if (closed > 0) {
+                const closedIdx = b.closedIndexesAround(...p);
+                const p2 = b._idx2pos(closedIdx[0]);
+                pos.x = p2[0];
+                pos.y = p2[1];
+                if (closed == (value - flags)) {
+                  pos.op = 'f';
+                  console.log(`next move ${JSON.stringify(pos)}`);
+                  resolve(pos);
+                  return true;
+                } else if (0 == (value - flags)) {
+                  pos.op = 'o';
+                  console.log(`next move ${JSON.stringify(pos)}`);
+                  resolve(pos);
+                  return true;
+                }
+              }
             }
+            return false;
+          }
+
+          // 確定開きを探す
+          if (searchFixed(0, 'o')) return;
+
+          // 確定旗立て1～8を探す
+          for (let i = 1; i <= 8; ++i) {
+            if (searchFixed(i, 'f')) return;
           }
 
           // 1-1を探す
@@ -410,15 +428,6 @@ class SolverPlayer extends Player {
           // 1221
           //  ** 
 
-          // 確定3を探す
-          //  3
-          // ***
-
-          // 確定2を探す
-          // ###
-          // #22
-          // #**
-
           // 確定がないので適当に開ける
           const closedIdxs = b.closedIndexes();
           const idx = Math.floor(Math.random() * closedIdxs.length);
@@ -428,6 +437,7 @@ class SolverPlayer extends Player {
           pos.x = p[0];
           pos.y = p[1];
         }
+        console.log(`next move ${JSON.stringify(pos)}`);
         resolve(pos);
       });
     });
