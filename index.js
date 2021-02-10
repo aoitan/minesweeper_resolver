@@ -9,7 +9,6 @@ const width = parseInt(process.argv[2]);
 const height = parseInt(process.argv[3]);
 const bombs = parseInt(process.argv[4]);
 
-const ANY = -1;
 const OUT_OB_BOARD = -2;
 const BOMB = 9;
 const FLAG = 10;
@@ -143,7 +142,7 @@ class GameState {
 
   init() {
     this.board.init();
-    this.state = this.board.data.map(c => (c != OUT_OB_BOARD)? CLOSED: OUT_OB_BOARD);
+    this.state = this.board.data.map(c => (c != OUT_OB_BOARD)? CLOSED: OPENED);
     this.stateChanged.forEach(i => i.stateChanged(this));
   }
 
@@ -250,6 +249,15 @@ class GameState {
     }, []);
   }
 
+  openedIndexes() {
+    return this.state.reduce((p, c, i) => {
+      if (c == OPENED) {
+          p.push(i);
+      }
+      return p;
+    }, []);
+  }
+
   openedNIndexes(n) {
     return this.state.reduce((p, c, i) => {
       if (c == OPENED) {
@@ -324,6 +332,10 @@ class GameState {
     return this.state.map((c, i) => this.getAtIndex(i));
   }
 
+  get data() {
+    return this.board.data;
+  }
+
   get width() {
     return this.board.width;
   }
@@ -387,6 +399,7 @@ class FirstContext extends SolverContext {
   }
 
   nextContext() {
+    console.log(`FirstContext -> FixedContext`);
     return new FixedContext(this.gameState);
   }
 }
@@ -394,7 +407,7 @@ class FirstContext extends SolverContext {
 class RandomContext extends SolverContext {
   solve() {
     const idxs = this.gameState.closedIndexes();
-    const r = Math.floor(Math.random()) * idxs.length;
+    const r = Math.floor(Math.random() * idxs.length);
     const idx = idxs[r];
     const pos = idx2pos(idx);
     const move = {op: 'o', x: pos[0], y: pos[1]};
@@ -403,6 +416,7 @@ class RandomContext extends SolverContext {
   }
 
   nextContext() {
+    console.log(`RandomContext -> FixedContext`);
     return new FixedContext(this.gameState);
   }
 }
@@ -462,6 +476,7 @@ class FixedContext extends SolverContext {
   }
 
   nextContext() {
+    console.log(`${this.constructor.name} -> ${this._nextContext.constructor.name}`);
     return this._nextContext;
   }
 }
@@ -469,60 +484,134 @@ class FixedContext extends SolverContext {
 class PatternContext extends SolverContext {
   constructor(gameState) {
     super(gameState);
-    this._nextContext = this;
+    this._nextContext = new FixedContext(gameState);
+    const ANY = v => true;
+    const _1 = v => v == 1;
+    const _2 = v => v == 2;
     this.patterns = [
-      [ // 1 1横並び下ふさがり
-        {pos: [-1, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 0, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 1, -1], value: ANY, opened: true , op: 'n'},
-        {pos: [-1,  0], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  0], value: 1  , opened: true , op: 'n'}, {pos: [ 1,  0], value: 1  , opened: true , op: 'n'},
-        {pos: [-1,  1], value: ANY, opened: false, op: 'o'}, {pos: [ 0,  1], value: ANY, opened: false, op: 'n'}, {pos: [ 1,  1], value: ANY, opened: false, op: 'n'},
+      [ // 1 1横並び下ふさがり右開き
+        {pos: [-1, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 0, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 1, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 2, -1], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  0], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 2,  0], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  1], value: ANY, opened: false, op: 'n'}, {pos: [ 1,  1], value: ANY, opened: false, op: 'n'}, {pos: [ 2,  1], value: ANY, opened: false, op: 'o'},
       ],
-      [ // 1 1横並び上ふさがり
-        {pos: [-1, -1], value: ANY, opened: false, op: 'o'}, {pos: [ 0, -1], value: ANY, opened: false, op: 'n'}, {pos: [ 1, -1], value: ANY, opened: false, op: 'n'},
-        {pos: [-1,  0], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  0], value: 1  , opened: true , op: 'n'}, {pos: [ 1,  0], value: 1  , opened: true , op: 'n'},
-        {pos: [-1,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: true , op: 'n'},
+      [ // 1 1横並び下ふさがり左開き
+        {pos: [-1, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 0, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 1, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 2, -1], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  0], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 2,  0], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  1], value: ANY, opened: false, op: 'o'}, {pos: [ 0,  1], value: ANY, opened: false, op: 'n'}, {pos: [ 1,  1], value: ANY, opened: false, op: 'n'}, {pos: [ 2,  1], value: ANY, opened: true , op: 'n'},
       ],
-      [ // 1 1縦並び左ふさがり
+      [ // 1 1横並び上ふさがり右開き
+        {pos: [-1, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 0, -1], value: ANY, opened: false, op: 'n'}, {pos: [ 1, -1], value: ANY, opened: false, op: 'n'}, {pos: [ 2, -1], value: ANY, opened: false, op: 'o'},
+        {pos: [-1,  0], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 2,  0], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 2,  1], value: ANY, opened: true , op: 'n'},
+      ],
+      [ // 1 1横並び上ふさがり左開き
+        {pos: [-1, -1], value: ANY, opened: false, op: 'o'}, {pos: [ 0, -1], value: ANY, opened: false, op: 'n'}, {pos: [ 1, -1], value: ANY, opened: false, op: 'n'}, {pos: [ 2, -1], value: ANY, opened: false, op: 'o'},
+        {pos: [-1,  0], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 2,  0], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 2,  1], value: ANY, opened: true , op: 'n'},
+      ],
+      [ // 1 1縦並び左ふさがり上開き
         {pos: [-1, -1], value: ANY, opened: false, op: 'o'}, {pos: [ 0, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 1, -1], value: ANY, opened: true , op: 'n'},
-        {pos: [-1,  0], value: ANY, opened: false, op: 'n'}, {pos: [ 0,  0], value: 1  , opened: true , op: 'n'}, {pos: [ 1,  0], value: ANY, opened: true , op: 'n'},
-        {pos: [-1,  1], value: ANY, opened: false, op: 'n'}, {pos: [ 0,  1], value: 1  , opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  0], value: ANY, opened: false, op: 'n'}, {pos: [ 0,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  0], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  1], value: ANY, opened: false, op: 'n'}, {pos: [ 0,  1], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  2], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  2], value: ANY, opened: true , op: 'n'}, {pos: [ 1,  2], value: ANY, opened: true , op: 'n'},
       ],
-      [ // 1 1縦並び右ふさがり
+      [ // 1 1縦並び左ふさがり下開き
+        {pos: [-1, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 0, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 1, -1], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  0], value: ANY, opened: false, op: 'n'}, {pos: [ 0,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  0], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  1], value: ANY, opened: false, op: 'n'}, {pos: [ 0,  1], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  2], value: ANY, opened: false, op: 'o'}, {pos: [ 0,  2], value: ANY, opened: true , op: 'n'}, {pos: [ 1,  2], value: ANY, opened: true , op: 'n'},
+      ],
+      [ // 1 1縦並び右ふさがり上開き
         {pos: [-1, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 0, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 1, -1], value: ANY, opened: false, op: 'o'},
-        {pos: [-1,  0], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  0], value: 1  , opened: true , op: 'n'}, {pos: [ 1,  0], value: ANY, opened: false, op: 'n'},
-        {pos: [-1,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  1], value: 1  , opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: false, op: 'n'},
+        {pos: [-1,  0], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  0], value: ANY, opened: false, op: 'n'},
+        {pos: [-1,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  1], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: false, op: 'n'},
+        {pos: [-1,  2], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  2], value: ANY, opened: true , op: 'n'}, {pos: [ 1,  2], value: ANY, opened: true , op: 'n'},
+      ],
+      [ // 1 1縦並び右ふさがり下開き
+        {pos: [-1, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 0, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 1, -1], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  0], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  0], value: ANY, opened: false, op: 'n'},
+        {pos: [-1,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  1], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: false, op: 'n'},
+        {pos: [-1,  2], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  2], value: ANY, opened: true , op: 'n'}, {pos: [ 1,  2], value: ANY, opened: false, op: 'o'},
       ],
       [ // 1 2 1横並び下ふさがり
         {pos: [-1, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 0, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 1, -1], value: ANY, opened: true , op: 'n'},
-        {pos: [-1,  0], value: 1  , opened: true , op: 'n'}, {pos: [ 0,  0], value: 2  , opened: true , op: 'n'}, {pos: [ 1,  0], value: 1  , opened: true , op: 'n'},
+        {pos: [-1,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 0,  0], value: _2 , opened: true , op: 'n'}, {pos: [ 1,  0], value: _1 , opened: true , op: 'n'},
         {pos: [-1,  1], value: ANY, opened: false, op: 'f'}, {pos: [ 0,  1], value: ANY, opened: false, op: 'o'}, {pos: [ 1,  1], value: ANY, opened: false, op: 'f'},
       ],
       [ // 1 2 1横並び上ふさがり
         {pos: [-1, -1], value: ANY, opened: false, op: 'f'}, {pos: [ 0, -1], value: ANY, opened: false, op: 'o'}, {pos: [ 1, -1], value: ANY, opened: false, op: 'f'},
-        {pos: [-1,  0], value: 1  , opened: true , op: 'n'}, {pos: [ 0,  0], value: 2  , opened: true , op: 'n'}, {pos: [ 1,  0], value: 1  , opened: true , op: 'n'},
+        {pos: [-1,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 0,  0], value: _2 , opened: true , op: 'n'}, {pos: [ 1,  0], value: _1 , opened: true , op: 'n'},
         {pos: [-1,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: true , op: 'n'},
       ],
       [ // 1 2 1縦並び左ふさがり
-        {pos: [-1, -1], value: ANY, opened: false, op: 'f'}, {pos: [ 0, -1], value: 1  , opened: true , op: 'n'}, {pos: [ 1, -1], value: ANY, opened: true , op: 'n'},
-        {pos: [-1,  0], value: ANY, opened: false, op: 'o'}, {pos: [ 0,  0], value: 2  , opened: true , op: 'n'}, {pos: [ 1,  0], value: ANY, opened: true , op: 'n'},
-        {pos: [-1,  1], value: ANY, opened: false, op: 'f'}, {pos: [ 0,  1], value: 1  , opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: true , op: 'n'},
+        {pos: [-1, -1], value: ANY, opened: false, op: 'f'}, {pos: [ 0, -1], value: _1 , opened: true , op: 'n'}, {pos: [ 1, -1], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  0], value: ANY, opened: false, op: 'o'}, {pos: [ 0,  0], value: _2 , opened: true , op: 'n'}, {pos: [ 1,  0], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  1], value: ANY, opened: false, op: 'f'}, {pos: [ 0,  1], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: true , op: 'n'},
       ],
       [ // 1 2 1縦並び右ふさがり
-        {pos: [-1, -1], value: ANY, opened: true , op: 'f'}, {pos: [ 0, -1], value: 1  , opened: true , op: 'n'}, {pos: [ 1, -1], value: ANY, opened: false, op: 'f'},
-        {pos: [-1,  0], value: ANY, opened: true , op: 'o'}, {pos: [ 0,  0], value: 2  , opened: true , op: 'n'}, {pos: [ 1,  0], value: ANY, opened: false, op: 'o'},
-        {pos: [-1,  1], value: ANY, opened: true , op: 'f'}, {pos: [ 0,  1], value: 1  , opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: false, op: 'f'},
+        {pos: [-1, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 0, -1], value: _1 , opened: true , op: 'n'}, {pos: [ 1, -1], value: ANY, opened: false, op: 'f'},
+        {pos: [-1,  0], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  0], value: _2 , opened: true , op: 'n'}, {pos: [ 1,  0], value: ANY, opened: false, op: 'o'},
+        {pos: [-1,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  1], value: _1 , opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: false, op: 'f'},
+      ],
+      [ // 1 2 2 1横並び上ふさがりA
+        {pos: [-1, -1], value: ANY, opened: false, op: 'n'}, {pos: [ 0, -1], value: ANY, opened: false, op: 'f'}, {pos: [ 1, -1], value: ANY, opened: false, op: 'f'}, {pos: [2, -1], value: ANY, opened: false, op: 'n'},
+        {pos: [-1,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 0,  0], value: _2 , opened: true , op: 'n'}, {pos: [ 1,  0], value: _2 , opened: true , op: 'n'}, {pos: [2,  0], value: _1 , opened: true , op: 'n'},
+        {pos: [-1,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 0,  1], value: ANY, opened: true , op: 'n'}, {pos: [ 1,  1], value: ANY, opened: true , op: 'n'}, {pos: [2,  1], value: ANY, opened: true , op: 'n'},
+      ],
+      [ // 1 2 2 1横並び下ふさがりA
+        {pos: [-1, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 0, -1], value: ANY, opened: true , op: 'n'}, {pos: [ 1, -1], value: ANY, opened: true , op: 'n'}, {pos: [2, -1], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  0], value: _1 , opened: true , op: 'n'}, {pos: [ 0,  0], value: _2 , opened: true , op: 'n'}, {pos: [ 1,  0], value: _2 , opened: true , op: 'n'}, {pos: [2,  0], value: _1 , opened: true , op: 'n'},
+        {pos: [-1,  1], value: ANY, opened: false, op: 'n'}, {pos: [ 0,  1], value: ANY, opened: false, op: 'f'}, {pos: [ 1,  1], value: ANY, opened: false, op: 'f'}, {pos: [2,  1], value: ANY, opened: false, op: 'n'},
+      ],
+      [ // 1 2 2 1縦並び左ふさがり
+        {pos: [-1, -1], value: ANY, opened: false, op: 'n'}, {pos: [-1, -1], value: _1 , opened: true , op: 'n'}, {pos: [-1, -1], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  0], value: ANY, opened: false, op: 'f'}, {pos: [-1,  0], value: _2 , opened: true , op: 'n'}, {pos: [-1,  0], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  1], value: ANY, opened: false, op: 'f'}, {pos: [-1,  1], value: _2 , opened: true , op: 'n'}, {pos: [-1,  1], value: ANY, opened: true , op: 'n'},
+        {pos: [-1,  2], value: ANY, opened: false, op: 'n'}, {pos: [-1,  2], value: _1 , opened: true , op: 'n'}, {pos: [-1,  2], value: ANY, opened: true , op: 'n'},
+      ],
+      [ // 1 2 2 1縦並び右ふさがり
+        {pos: [-1, -1], value: ANY, opened: true , op: 'n'}, {pos: [-1, -1], value: _1 , opened: true , op: 'n'}, {pos: [-1, -1], value: ANY, opened: false, op: 'n'},
+        {pos: [-1,  0], value: ANY, opened: true , op: 'n'}, {pos: [-1,  0], value: _2 , opened: true , op: 'n'}, {pos: [-1,  0], value: ANY, opened: false, op: 'f'},
+        {pos: [-1,  1], value: ANY, opened: true , op: 'n'}, {pos: [-1,  1], value: _2 , opened: true , op: 'n'}, {pos: [-1,  1], value: ANY, opened: false, op: 'f'},
+        {pos: [-1,  2], value: ANY, opened: true , op: 'n'}, {pos: [-1,  2], value: _1 , opened: true , op: 'n'}, {pos: [-1,  2], value: ANY, opened: false, op: 'n'},
       ],
     ];
   }
 
   solve() {
     let move = null;
+
+    const openedIndexes = this.gameState.openedIndexes();
+    const openedIndexesNot0 = openedIndexes.filter(c => this.gameState.getAtIndex(c) != 0);
+    for (let cell of openedIndexesNot0) {
+      const current = idx2pos(cell);
+      const matchPattern = this.patterns.find((pattern) =>{
+        return pattern.every((check) => {
+          const x = current[0] + check.pos[0];
+          const y = current[1] + check.pos[1];
+          if (check.opened && this.gameState.isOpened(x, y) && check.value(this.gameState.getAtPos(x, y) - this.gameState.countFlagsAround(x, y))) {
+            return true;
+          } else if (check.opened == false && this.gameState.isClosed(x, y)) {
+            return true;
+          }
+        }, this);
+      });
+      if (matchPattern) {
+        const p = matchPattern.find(c => c.op != 'n');
+        move = {op: p.op, x: current[0] + p.pos[0], y: current[1] + p.pos[1]};
+        break;
+      }
+    }
+
     if (move == null) {
       this._nextContext = new RandomContext(this.gameState);
     }
-    return null;
+    console.log(`PatternContext next move ${JSON.stringify(move)}`);
+    return move;
   }
 
   nextContext() {
+    console.log(`${this.constructor.name} -> ${this._nextContext.constructor.name}`);
     return this._nextContext;
   }
 }
@@ -604,16 +693,15 @@ class BoardView {
 
 // コマンドラインにテキストで表示する
 class BoardCuiView extends BoardView {
-  /* private */ _drawImpl(gameState, conv) {
-    //console.log(`func: BoardCuiView$_drawImpl, w: ${gameState.w}, h: ${gameState.h}, b: ${gameState.data.length}`);
+  /* private */ _drawImpl(gameState, data, conv) {
+    //console.log(`func: BoardCuiView$_drawImpl, w: ${gameState.width}, h: ${gameState.height}, b: ${gameState.data}`);
     let line = [];
-    const displayData = gameState.displayData;
-    for (let i = 0; i < displayData.length; ++i) {
+    for (let i = 0; i < data.length; ++i) {
       if (i % (gameState.width + 2) == 0) {
         console.log(line.join(''));
         line = [];
       }
-      line.push(conv(displayData[i]));
+      line.push(conv(data[i]));
     }
     console.log(line.join(''));
     console.log(`closed: ${gameState.countClosed()}, flags: ${gameState.countFlags()}`);
@@ -632,7 +720,7 @@ class BoardCuiView extends BoardView {
           return d;
       }
     };
-    this._drawImpl(gameState, conv);
+    this._drawImpl(gameState, gameState.displayData, conv);
   }
 
   answer(gameState, isWin) {
@@ -650,7 +738,7 @@ class BoardCuiView extends BoardView {
           return d;
       }
     };
-    this._drawImpl(gameState, conv);
+    this._drawImpl(gameState, gameState.data, conv);
     if (isWin) {
       console.log(`おめでとう :-)`);
     } else {
